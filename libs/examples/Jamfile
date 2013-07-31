@@ -1,0 +1,29 @@
+lib db : : <name>db ;
+lib pthread : : <name>pthread ;
+lib boost_filesystem : : <name>boost_filesystem ;
+lib boost_serialization : : <name>boost_serialization ;
+lib boost_program_options : : <name>boost_program_options ;
+lib glog : : <name>glog : : <search>$(MORPHEUS_ROOT)/third/lib ;
+lib muduo_base : : <name>muduo_base : : <search>$(MORPHEUS_ROOT)/third/lib ;
+lib muduo_net : : <name>muduo_net : : <search>$(MORPHEUS_ROOT)/third/lib ;
+lib muduo_http : : <name>muduo_http : : <search>$(MORPHEUS_ROOT)/third/lib ;
+
+exe server : server.cpp 
+  pthread 
+  glog 
+  boost_program_options 
+  boost_serialization 
+  boost_filesystem 
+  muduo_base/<link>static 
+  muduo_net/<link>static 
+  muduo_http/<link>static ;
+
+exe client : client.cpp 
+  pthread 
+  glog 
+  boost_serialization 
+  boost_program_options 
+  muduo_base/<link>static 
+  muduo_net/<link>static ;
+
+install dist : server : <location>$(MORPHEUS_ROOT)/dist ;

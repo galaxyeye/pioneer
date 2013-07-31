@@ -1,0 +1,56 @@
+path-constant PIONEER_ROOT : . ;
+constant PIONEER_VERSION : 0.0.1 ;
+constant PIONEER_JAMROOT_MODULE : $(__name__) ;
+
+import package ;
+
+import sequence ;
+import xsltproc ;
+import set ;
+import path ;
+import build-system ;
+
+import os ;
+import testing ;
+import site-config ;
+
+using gcc : 4.7 : : <compileflags>-std=c++0x <compileflags>-fpermissive ;
+
+project pioneer
+    : requirements 
+      <include>$(PIONEER_ROOT)
+      <include>$(PIONEER_ROOT)/third/include
+      <library-path>$(PIONEER_ROOT)/third/lib
+    : usage-requirements <include>.
+    : build-dir bin
+    ;
+
+rule pre-build ( )
+{
+    local tl = [ modules.peek : top-level-targets ] ;
+    if stage in $(tl) || install in $(tl)
+    {
+        if PAD in [ RULENAMES ]
+        {            
+            configure.print-component-configuration ;
+        }
+    }
+}
+
+IMPORT $(__name__) : pre-build : : $(__name__).pre-build ;
+build-system.set-pre-build-hook $(__name__).pre-build ;
+
+rule post-build ( ok ? ) 
+{
+    if forward in [ modules.peek : top-level-targets ] 
+    {
+        if $(ok)
+        {
+        	ECHO "\n\nMorpheus were successfully built!" ;
+        }
+    }
+}
+
+IMPORT $(__name__) : post-build : : $(__name__).post-build ;
+build-system.set-post-build-hook $(__name__).post-build ;
+
