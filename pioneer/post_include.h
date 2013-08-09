@@ -25,6 +25,5 @@
 
 #include <pioneer/system/impl/context.ipp>
 #include <pioneer/system/impl/status.ipp>
-#include <pioneer/rfc/service/impl/rfc_func.ipp>
 
 #endif /* POST_INCLUDE_H_ */

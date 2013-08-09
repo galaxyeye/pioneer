@@ -30,8 +30,9 @@
 #include <future>
 
 #include <boost/uuid/uuid.hpp>
-
 #include <atlas/singleton.h>
+
+#include <pioneer/rfc/detail/result.h>
 
 namespace pioneer {
   namespace rfc {
@@ -39,7 +40,7 @@ namespace pioneer {
     using boost::uuids::uuid;
 
     class async_task;
-    typedef std::function<void(size_t, const std::string&, int, async_task& task)> rpc_callback_type;
+    typedef std::function<void(const std::string&, int, async_task& task)> rpc_callback_type;
 
     struct __async_task {
 
@@ -93,22 +94,21 @@ namespace pioneer {
 
       operator bool() const { return _pimpl.operator bool(); }
 
-      void increase_response_received() { ++_pimpl->response_received; }
+      void increase_response() { ++_pimpl->response_received; }
 
       bool ready() const { return _pimpl->response_received == _pimpl->response_received; }
 
-      void run(size_t count, const std::string& result, int err) {
-        _pimpl->record_count += count;
-        if (_pimpl->cb) _pimpl->cb(count, result, err, *this);
+      void run(const std::string& result, int err) {
+        if (_pimpl->cb) _pimpl->cb(result, err, *this);
       }
 
       void put_data(const std::string& data) { _pimpl->data_list.push_back(data); }
 
       void put_data(std::string&& data) { _pimpl->data_list.push_back(data); }
 
-      size_t response_received() const { return _pimpl->response_received; }
+      size_t response_count() const { return _pimpl->response_received; }
 
-      size_t response_expected() const { return _pimpl->response_expected; }
+      size_t expected_response_count() const { return _pimpl->response_expected; }
 
       size_t record_count() const { return _pimpl->record_count; }
 
@@ -118,7 +118,7 @@ namespace pioneer {
           result += s;
           if (sep != '\0') result += sep;
         }
-        return result;
+        return result; // NRVO
       }
 
       const std::vector<std::string>& data_list() const { return _pimpl->data_list; }
@@ -129,7 +129,7 @@ namespace pioneer {
     };
 
     inline std::ostream& operator<<(std::ostream& os, const async_task& task) {
-      os << task.record_count() << ", " << task.response_received() << ", " << task.response_received();
+      os << task.response_count() << ", " << task.expected_response_count();
       return os;
     }
 
@@ -154,7 +154,7 @@ namespace pioneer {
         return std::move(future.get());
       }
 
-      void resume(const uuid& id, size_t count, const std::string& result, int err_code = 0) {
+      void resume(const uuid& id, const std::string& result, int err_code = 0) {
         promise_ptr promise;
 
         {
@@ -163,7 +163,7 @@ namespace pioneer {
           _promises.erase(id);
         }
 
-        rfc_result r(count, result, err_code);
+        rfc_result r(true, result, err_code);
         promise->set_value(r);
       }
 
@@ -188,16 +188,16 @@ namespace pioneer {
         _sessions.insert(std::make_pair(id, task));
       }
 
-      void resume(const uuid& id, size_t count, const std::string& result, int err_code = 0) {
+      void resume(const uuid& id, const std::string& result, int err_code = 0) {
         std::lock_guard<std::mutex> guard(_mutex);
 
         auto it = _sessions.find(id);
         if (it != _sessions.end()) {
           // increase response counter
-          it->second.increase_response_received();
+          it->second.increase_response();
 
           // call callback
-          it->second.run(count, result, err_code);
+          it->second.run(result, err_code);
 
           // clean if need
           if (it->second.ready()) {

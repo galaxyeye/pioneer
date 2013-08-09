@@ -39,9 +39,12 @@ namespace pioneer {
 
       // use atomic to avoid multi-thread problem
       static std::atomic<int> outside_node_count;
-      static std::atomic<int> inside_node_count;
+      static std::atomic<int> inner_node_count;
 
       // ip list
+      // TODO : change to concurrent_skip_list
+      // static atlas::concurrent_skip_list<std::string> outside_ip_list;
+      // static atlas::concurrent_skip_list<std::string> inside_ip_list;
       static std::set<std::string> outside_ip_list;
       static std::set<std::string> inside_ip_list;
 

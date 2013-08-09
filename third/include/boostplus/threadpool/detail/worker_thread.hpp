@@ -17,8 +17,6 @@
 #ifndef THREADPOOL_DETAIL_WORKER_THREAD_HPP_INCLUDED
 #define THREADPOOL_DETAIL_WORKER_THREAD_HPP_INCLUDED
 
-#include <clown/scope_guard.h>
-
 #include <cassert>
 #include <memory>
 #include <thread>
@@ -27,6 +25,22 @@
 namespace boostplus {
   namespace threadpool {
     namespace detail {
+
+      class scope_guard {
+      public:
+
+        scope_guard(std::function<void()> fn) : _fn(fn) {}
+
+        void dismiss() { _fn = nullptr; }
+
+        ~scope_guard() noexcept {
+          if (_fn) _fn();
+        }
+
+      private:
+
+        std::function<void()> _fn;
+      };
 
       /*! \brief Thread pool worker.
        *
@@ -70,11 +84,11 @@ namespace boostplus {
         /*! Executes pool's tasks sequentially.
          */
         void run() {
-          clown::scope_guard notify_exception(std::bind(&worker_thread::died_unexpectedly, this));
+          scope_guard notify_exception(std::bind(&worker_thread::died_unexpectedly, this));
 
           while (_pool->execute_task()) {}
 
-          notify_exception.disable();
+          notify_exception.dismiss();
           _pool->worker_destructed(this->shared_from_this());
         }
 

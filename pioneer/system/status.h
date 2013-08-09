@@ -32,7 +32,7 @@ namespace pioneer {
   const static int max_udp_test_rounds = 50;
 
   struct status {
-    static std::atomic<unsigned long long> last_check_time;
+    static std::atomic<long> last_check_time;
 
     // mcast
     static std::atomic<unsigned long long> mcast_sent;

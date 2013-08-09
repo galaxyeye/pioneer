@@ -27,8 +27,13 @@
 #include <glog/stl_logging.h>
 #include <atlas/iomanip.h> // put_time
 #include <muduo/net/http/HttpRequest.h>
+#include <muduo/net/http/HttpResponse.h>
 
+#include <pioneer/net/ip.h>
+#include <pioneer/net/request.h>
+#include <pioneer/rfc/rfc.h>
 #include <pioneer/system/status.h>
+#include <pioneer/system/context.h>
 #include <pioneer/system/thread_pool.h>
 
 namespace pioneer {
@@ -188,7 +193,7 @@ namespace pioneer {
           system::context::inside_ip_list.erase(peer_ip);
         }
 
-        system::context::inside_node_count = system::context::inside_ip_list.size();
+        system::context::inner_node_count = system::context::inside_ip_list.size();
 
         LOG(INFO) << system::context::inside_ip_list;
       }
@@ -261,7 +266,7 @@ namespace pioneer {
         buf->retrieveAll();
       }
 
-      void handle_http_message(const mn::HttpRequest& request, mn::HttpResponse* response) {
+      static void handle_http_message(const mn::HttpRequest& request, mn::HttpResponse* response) {
         if (request.path() == "/") {
           response->setStatusCode(mn::HttpResponse::k200Ok);
           response->setStatusMessage("OK");

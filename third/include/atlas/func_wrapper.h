@@ -71,6 +71,32 @@ namespace atlas {
       ia >> _args;
     }
 
+    /*
+     * The last parameter can be replaced by a local variable
+     * */
+    template<typename Functor, typename IArchiver, typename NativeArg>
+    func_wrapper(Functor f, IArchiver& ia, const NativeArg& native_arg,
+        typename std::enable_if<!std::is_integral<Functor>::value, useless>::type = useless()) :
+        _f(f)
+    {
+      ia >> _args;
+
+      std::get<sizeof...(Args) - 1>(_args) = native_arg;
+    }
+
+    /*
+     * The last parameter can be replaced by a local variable
+     * */
+    template<typename Functor, typename IArchiver, typename NativeArg>
+    func_wrapper(Functor f, IArchiver& ia, NativeArg&& native_arg,
+        typename std::enable_if<!std::is_integral<Functor>::value, useless>::type = useless()) :
+        _f(f)
+    {
+      ia >> _args;
+
+      std::get<sizeof...(Args) - 1>(_args) = native_arg;
+    }
+
     /**
      *  @brief %func_wrapper assignment operator.
      *  @param other A %func_wrapper with identical call signature.

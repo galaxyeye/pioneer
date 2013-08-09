@@ -18,12 +18,3 @@ exe server : server.cpp
   muduo_net/<link>static 
   muduo_http/<link>static ;
 
-exe client : client.cpp 
-  pthread 
-  glog 
-  boost_serialization 
-  boost_program_options 
-  muduo_base/<link>static 
-  muduo_net/<link>static ;
-
-install dist : server : <location>$(MORPHEUS_ROOT)/dist ;

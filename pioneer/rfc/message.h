@@ -20,15 +20,24 @@
  *    limitations under the License.
  */
 
-#ifndef RFC_MESSAGE_H_
-#define RFC_MESSAGE_H_
+#ifndef PIONEER_RFC_MESSAGE_H_
+#define PIONEER_RFC_MESSAGE_H_
 
 #include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_io.hpp>
 
 namespace pioneer {
   namespace rfc {
 
     using boost::uuids::uuid;
+
+    enum client_type {
+      outward_client = 0x001, inward_client = 0x002, any_client = outward_client | inward_client
+    };
+
+    enum return_type {
+      rfc_sync, rfc_async_callback, rfc_async_no_callback
+    };
 
     // TODO : check the alignment, when should be 4 and when 8? what's the difference?
 #pragma pack(4)
@@ -72,10 +81,10 @@ namespace pioneer {
 
       static const size_t request_header_size = sizeof(request_header);
 
-      message(const std::string& data) : _header(*data.c_str()),
+      message(const std::string& data) : _header(*reinterpret_cast<const request_header*>(data.data())),
         _body(data.c_str() + request_header_size, data.size() - request_header_size) {}
 
-      message(const char* data, size_t size) : _header(*data),
+      message(const char* data, size_t size) : _header(*reinterpret_cast<const request_header*>(data)),
         _body(data + request_header_size, size - request_header_size) {}
 
       void reset(const std::string& data) {

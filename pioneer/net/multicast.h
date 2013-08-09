@@ -35,6 +35,7 @@
 
 #include <pioneer/net/ip.h>
 #include <pioneer/net/config.h>
+#include <pioneer/system/status.h>
 
 namespace pioneer {
   namespace net {
@@ -228,7 +229,7 @@ namespace pioneer {
         bzero(&_mcast_addr, sizeof(struct sockaddr_in));
         _mcast_addr.sin_family = AF_INET;
 
-        inet_pton(AF_INET, MULTICAST_ADDR, &_mcast_addr.sin_addr);
+        inet_pton(AF_INET, PIONEER_MULTIGROUP, &_mcast_addr.sin_addr);
         _mcast_addr.sin_port = htons(MULTICAST_PORT);
         _mcast_addr_len = sizeof(_mcast_addr);
 

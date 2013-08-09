@@ -34,7 +34,6 @@
 #include <pioneer/net/ip.h>
 #include <pioneer/rfc/message.h>
 #include <pioneer/rfc/rfc.h>
-#include <pioneer/rfc/service/rfc_func.h>
 #include <pioneer/rfc/clients.h>
 
 namespace pioneer {
@@ -55,7 +54,8 @@ namespace pioneer {
       unknown_error
     };
 
-    class session_ptr;
+    class session;
+    typedef std::shared_ptr<session> session_ptr;
 
     /**
      * @see session
@@ -68,8 +68,8 @@ namespace pioneer {
           _session(s)
       {
         _fn_id = static_cast<int>(_message.header()->fn_id);
-        rfc::client_type ct = static_cast<rfc::client_type>(_message.header()->client_type);
-        rfc::return_type rt = static_cast<rfc::return_type>(_message.header()->return_type);
+        _client_type = static_cast<rfc::client_type>(_message.header()->client_type);
+        _return_type = static_cast<rfc::return_type>(_message.header()->return_type);
       }
 
       ~request() { }
@@ -85,32 +85,29 @@ namespace pioneer {
         rfc::rfc_result result;
 
         try {
-          result = rfc::dispatcher::dispatch(_fn_id, _rfc_str, context);
+          result = rfc::dispatcher_chain::dispatch(_fn_id, _rfc_str, context);
         }
         catch (const std::exception& err) {
           LOG(ERROR) << err.what();
-          result = rfc::rfc_result {0, err.what(), error_category::std_error};
+          result = rfc::rfc_result {err.what(), error_category::std_error};
         }
         catch (const std::string& err) {
           LOG(ERROR) << "[" << err << "]";
-          result = rfc::rfc_result {0, err, error_category::string_error};
+          result = rfc::rfc_result {err, error_category::string_error};
         }
         catch (const char* err) {
           LOG(ERROR) << "[" << err << "]";
-          result = rfc::rfc_result {0, err, error_category::cstring_error};
+          result = rfc::rfc_result {err, error_category::cstring_error};
         }
         catch (...) {
           LOG(ERROR) << "Unexpected error!!!";
-          result = rfc::rfc_result {0, "Unexpected error!!!", error_category::unknown_error};
+          result = rfc::rfc_result {"Unexpected error!!!", error_category::unknown_error};
         }
 
         respond(result);
       }
 
       void respond(const rfc::rfc_result& result) {
-        // null result means abort this RFC, do not return to the client
-        if (!result) return;
-
         DLOG(INFO) << "respond rfc " << _fn_id << " to " << _client_type << ", " << _source_ip_port;
 
         rfc::p2p_client client(_client_type, _source_ip_port);

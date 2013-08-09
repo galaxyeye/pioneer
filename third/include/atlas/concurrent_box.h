@@ -66,7 +66,7 @@ namespace atlas {
 
     boost::optional<value_type> take(const key_type& key) {
       std::unique_lock<std::mutex> lock(_mutex);
-      _not_empty.wait_for(lock, _wait_time, []() { return !_container.empty(); });
+      _not_empty.wait_for(lock, _wait_time, [this]() { return !_container.empty(); });
 
       auto it = _container.find(key);
       if (it == _container.end()) return boost::none;
@@ -106,7 +106,7 @@ namespace atlas {
 
     boost::optional<value_type> random_take() {
       std::unique_lock<std::mutex> lock(_mutex);
-      _not_empty.wait_for(lock, _wait_time, []() { return !_container.empty(); });
+      _not_empty.wait_for(lock, _wait_time, [this]() { return !_container.empty(); });
 
       auto it = _container.begin();
       std::advance(it, get_random_index());
@@ -157,7 +157,7 @@ namespace atlas {
 
     boost::optional<value_type> pop() {
       std::unique_lock<std::mutex> lock(_mutex);
-      _not_empty.wait_for(lock, _wait_time, []() { return !_container.empty(); });
+      _not_empty.wait_for(lock, _wait_time, [this]() { return !_container.empty(); });
 
       if (_container.empty()) return boost::none;
 

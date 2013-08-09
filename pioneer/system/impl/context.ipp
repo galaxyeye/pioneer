@@ -33,13 +33,11 @@ namespace pioneer {
     std::atomic<bool> context::system_quitting = ATOMIC_VAR_INIT(false);
 
     // TODO : check whether we need this
-    std::atomic<int> context::outside_connection_count = ATOMIC_VAR_INIT(0);
-    std::atomic<int> context::inside_connection_count = ATOMIC_VAR_INIT(0);
+    std::atomic<int> context::outside_node_count = ATOMIC_VAR_INIT(0);
+    std::atomic<int> context::inner_node_count = ATOMIC_VAR_INIT(0);
 
     std::set<std::string> context::outside_ip_list;
     std::set<std::string> context::inside_ip_list;
-
-    std::atomic<bool> context::udp_test_enabled = ATOMIC_VAR_INIT(true);
 
     std::mutex context::mutex;
 

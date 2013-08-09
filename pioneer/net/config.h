@@ -38,12 +38,10 @@ namespace pioneer {
   static const int CATALOG_CLIENT_POOL_THREADS = 2;
 
   // TODO : move the static variables to config file
-  static const char MULTICAST_ADDR[] = "234.1.1.18";
+  static const char PIONEER_MULTIGROUP[] = "234.1.1.18";
   static const size_t MULTICAST_PORT = 1234;
   static const size_t RECV_BUFFER_SIZE = 220 * 1024;
   static const int MAX_WAIT_TIME = 2;
-  static const char EG_MULTIGROUP[] = "234.1.1.18";
-  static const char APP_ENGINE_MULTIGROUP[] = "234.1.1.18";
 
 }
 

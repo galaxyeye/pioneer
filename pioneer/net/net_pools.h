@@ -24,13 +24,22 @@
 #define NET_POOLS_H_
 
 #include <string>
+#include <atomic>
 #include <map>
 #include <mutex>
 #include <condition_variable>
 
+#include <boost/optional.hpp>
+#include <boost/bind.hpp>
+#include <boost/ptr_container/ptr_map.hpp>
 #include <glog/logging.h>
 #include <atlas/singleton.h>
+#include <atlas/concurrent_box.h>
+#include <muduo/net/EventLoopThreadPool.h>
+#include <muduo/net/TcpClient.h>
 #include <muduo/net/TcpConnection.h>
+
+#include <pioneer/net/net_error.h>
 
 namespace pioneer {
   namespace net {
@@ -41,22 +50,22 @@ namespace pioneer {
     class connection_pool : public atlas::singleton<connection_pool<pool_tag>> {
     public:
 
-      static const uint64_t default_wait_time = 60 * 1000; // 1 minute
+      // static const uint64_t default_wait_time = 60 * 1000; // 1 minute
 
       typedef std::map<std::string, mn::TcpConnectionPtr>::const_iterator iterator;
 
     private:
 
-      friend class atlas::singleton<connection_pool>;
+      friend class atlas::singleton<connection_pool<pool_tag>>;
       connection_pool(connection_pool&)= delete;
       connection_pool& operator=(const connection_pool&)= delete;
 
-      connection_pool() : _wait_time(default_wait_time) {}
+      // connection_pool() : _wait_time(default_wait_time) {}
 
     public:
 
       // take a connection and remove it from the pool, so it's safe in multi-thread environment
-      boost::optional<mn::TcpConnectionPtr> take(const std::string& ip_port) {
+      mn::TcpConnectionPtr take(const std::string& ip_port) {
         return _connections.take(ip_port);
       }
 
@@ -92,7 +101,7 @@ namespace pioneer {
     class tcp_client_pool : public atlas::singleton<tcp_client_pool<pool_tag>> {
     private:
 
-      friend class atlas::singleton<tcp_client_pool>;
+      friend class atlas::singleton<tcp_client_pool<pool_tag>>;
       tcp_client_pool(tcp_client_pool&)= delete;
       tcp_client_pool& operator=(const tcp_client_pool&)= delete;
 
@@ -100,10 +109,10 @@ namespace pioneer {
 
       tcp_client_pool() : _stopping(false), _stopped(false), _thread_num(1), _server_port(0), _base_loop(nullptr) {}
 
-      ~tcp_client_pool() = default;
-
       /// init/deinit section
     public:
+
+      ~tcp_client_pool() = default;
 
       void set_server_port(unsigned short server_port) { _server_port = server_port; }
 

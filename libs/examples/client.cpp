@@ -32,7 +32,6 @@
 #include <muduo/net/TcpConnection.h>
 #include <muduo/net/EventLoopThread.h>
 
-#include <pioneer/rfc/constants.h>
 #include <pioneer/rfc/message.h>
 
 #include <libs/commander.h>
@@ -88,7 +87,7 @@ private:
 
     if (!rfc_str.empty()) {
       int method = static_cast<int>(header->fn_id);
-      rfc::dispatcher::dispatch(method, rfc_str, nullptr);
+      rfc::dispatcher_chain::dispatch(method, rfc_str, nullptr);
     }
     else {
       LOG(ERROR) << "empty message!";

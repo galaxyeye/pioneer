@@ -28,7 +28,7 @@
 
 namespace pioneer {
 
-  std::atomic<unsigned long long> status::last_check_time = ATOMIC_VAR_INIT(::time(0));
+  std::atomic<long> status::last_check_time = ATOMIC_VAR_INIT(::time(0));
 
   // mcast
   std::atomic<unsigned long long> status::mcast_sent = ATOMIC_VAR_INIT(0);
