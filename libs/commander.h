@@ -20,8 +20,8 @@
  *    limitations under the License.
  */
 
-#ifndef PIONEER_RFC_COMMAND_H_
-#define PIONEER_RFC_COMMAND_H_
+#ifndef PIONEER_RPC_COMMAND_H_
+#define PIONEER_RPC_COMMAND_H_
 
 #include <string>
 #include <vector>
@@ -34,29 +34,26 @@
 #include <boost/tokenizer.hpp>
 
 #include <atlas/serialization/uuid.h>
+#include <atlas/rpc.h>
 
-#include <pioneer/rfc/rfc.h>
-#include <pioneer/rfc/service/rfc_func.h>
+#include "service/rfc_func.h"
 
 namespace po = boost::program_options;
 
 namespace pioneer {
-  namespace rfc {
+  namespace rpc {
 
-    void print_count(size_t count, const std::string& result, int err_code, async_task& task) {
-      if (err_code) {
-        std::cout << result << std::endl;
-        return;
-      }
+    using atlas::rpc::nilctx;
 
-      std::cout << "There are " << count << " records" << std::endl;
+    void print_result(const std::string& result, int err_code, atlas::rpc::async_task& task) {
+      std::cout << result << std::endl;
     }
 
     template<typename MessageSender>
-    class commander : public remote_caller {
+    class commander : public atlas::rpc::remote_caller {
     public:
 
-      commander(MessageSender& sender) : remote_caller(rfc::outward_client), _sender(sender) {
+      commander(MessageSender& sender) : atlas::rpc::remote_caller(rpc::outward_client), _sender(sender) {
         _descs["help"].add_options()
             ("start_udp_test", "start udp test")
             ("stop_udp_test", "stop udp test")
@@ -154,7 +151,7 @@ namespace pioneer {
           }
 
           if (command == "cstart_udp_test") {
-            call(rfc_func::cstart_udp_test, fn_ids::cstart_udp_test,
+            call(rpc_func::cstart_udp_test, fn_ids::cstart_udp_test,
                 vm["rounds"].as<int>(),
                 vm["test_count"].as<int>(),
                 vm["interval"].as<int>(),
@@ -162,7 +159,7 @@ namespace pioneer {
                 nilctx);
           }
           else if (command == "start_udp_test") {
-            call(rfc_func::start_udp_test, fn_ids::start_udp_test,
+            call(rpc_func::start_udp_test, fn_ids::start_udp_test,
                 vm["rounds"].as<int>(),
                 vm["test_count"].as<int>(),
                 vm["interval"].as<int>(),
@@ -170,13 +167,12 @@ namespace pioneer {
                 nilctx);
           }
           else if (command == "stop_udp_test") {
-            call(rfc_func::stop_udp_test, fn_ids::stop_udp_test, nilctx);
+            call(fn_ids::stop_udp_test, fn_ids::stop_udp_test, nilctx);
           }
           else if (command == "cannounce_data_node") {
             if (!check_require(vm, "ip_list", desc)) return;
 
-            call(rfc_func::cannounce_inward_node, fn_ids::cannounce_inward_node,
-                vm["ip_list"].as<std::string>(), nilctx);
+            call(fn_ids::cannounce_inner_node, fn_ids::cannounce_inner_node, vm["ip_list"].as<std::string>(), nilctx);
           }
         }
         catch (const std::exception& e) {
@@ -197,4 +193,4 @@ namespace pioneer {
   } // client
 } // pioneer
 
-#endif /* RFC_COMMAND_H_ */
+#endif /* PIONEER_RPC_COMMAND_H_ */

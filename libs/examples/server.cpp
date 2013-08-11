@@ -35,13 +35,11 @@
 #include <pioneer/net/net_pools.h>
 #include <pioneer/net/net_handlers.h>
 #include <pioneer/net/multicast.h>
-#include <pioneer/rfc/clients.h>
+#include <pioneer/net/rpc_clients.h>
 
+#include "config.h"
 #include "service/rfc_func.h"
 #include "service/rfc_func.ipp"
-
-// must be included at last of the compile unit
-#include <pioneer/post_include.h>
 
 namespace bf = boost::filesystem;
 
@@ -65,12 +63,11 @@ void at_signal() {
   system::context::system_quitting = true;
 
   // TODO : buggy
-  rfc::mcast_client client;
-  client.call(rfc::rfc_func::inner_node_quit, rfc::fn_ids::inner_node_quit, rfc::nilctx);
+  rpc::mcast_client client;
+  client.call(rpc::rpc_func::inner_node_quit, rpc::fn_ids::inner_node_quit, rpc::nilctx);
   sleep(2);
 
   net::inward_client_pool::ref().stop();
-  rfc::sync_task_manager::ref().clear();
 
   net::mcast_client::ref().stop();
   if (g_mcast_server) g_mcast_server->stop();
@@ -95,9 +92,9 @@ void signal_handler(int signal_no) {
 class pioneer_server {
 public:
 
-  pioneer_server(int outward_port, int inward_port, int report_port,
+  pioneer_server(int outward_port, int inward_port, int reporter_port,
       int outward_server_threads, int inward_server_threads, int icp_threads, bool logtostderr) :
-    _outward_server_address(outward_port), _inward_server_address(inward_port), _report_server_address(report_port),
+    _outward_server_address(outward_port), _inward_server_address(inward_port), _report_server_address(reporter_port),
     _outward_server_threads(outward_server_threads), _inward_server_threads(inward_server_threads), _icp_threads(icp_threads),
     _logtostderr(logtostderr)
   {
@@ -213,7 +210,7 @@ protected:
   void init_mcast_client() {
     LOG(INFO) << "initializing mcast client...";
 
-    net::mcast_client::ref().init();
+    net::mcast_client::ref().init(PIONEER_MULTIGROUP);
   }
 
   void start_outward_server() {
@@ -261,7 +258,7 @@ protected:
 
       auto& tcp_client_pool = net::inward_client_pool::ref();
 
-      tcp_client_pool.set_server_port(pioneer::INNER_SERVER_PORT);
+      tcp_client_pool.set_server_port(PIONEER_INWARD_SERVER_PORT);
       tcp_client_pool.set_thread_num(_icp_threads);
 
       tcp_client_pool.set_connection_callback(boost::bind(net::connection_handler::on_inward_client_connection, _1));
@@ -280,12 +277,6 @@ protected:
 
   void at_exit() {
     LOG(INFO) << "all services are stopped, do the cleaning";
-
-    // ensure no pending worker threads
-    system::worker_pool::ref().clear();
-
-    // ensure no pending sessions
-    net::session_manager::ref().clear();
   }
 
 private:
@@ -311,12 +302,12 @@ int main(int argc, char* argv[]) {
   po::options_description desc("allowed options:");
   desc.add_options()
       ("help", "Usage : [options]...")
-      ("outward_port", po::value<int>()->default_value(pioneer::FOREIGN_SERVER_PORT), "outward server port")
-      ("inward_port", po::value<int>()->default_value(pioneer::INNER_SERVER_PORT), "inner server port")
-      ("report_port", po::value<int>()->default_value(pioneer::REPORT_SERVER_PORT), "report server port")
-      ("outward_server_threads", po::value<int>()->default_value(pioneer::FOREIGN_SERVER_THREADS), "outward server thread number")
-      ("inward_server_threads", po::value<int>()->default_value(pioneer::INNER_SERVER_THREADS), "inner server thread number")
-      ("icp_threads", po::value<int>()->default_value(pioneer::inward_client_POOL_THREADS), "inner client pool thread number")
+      ("outward_port", po::value<int>()->default_value(PIONEER_OUTWARD_SERVER_PORT), "outward server port")
+      ("inward_port", po::value<int>()->default_value(PIONEER_INWARD_SERVER_PORT), "inward server port")
+      ("reporter_port", po::value<int>()->default_value(PIONEER_REPORT_SERVER_PORT), "report server port")
+      ("outward_server_threads", po::value<int>()->default_value(OUTWARD_SERVER_THREADS), "outward server thread number")
+      ("inward_server_threads", po::value<int>()->default_value(INWARD_SERVER_THREADS), "inward server thread number")
+      ("icp_threads", po::value<int>()->default_value(INWARD_CLIENT_POOL_THREADS), "inward client pool thread number")
       ("logtostderr", po::value<bool>()->default_value(true), "all logs are written to stderr instead of file")
       ;
 
@@ -334,7 +325,7 @@ int main(int argc, char* argv[]) {
     pioneer_server server(
         vm["outward_port"].as<int>(),
         vm["inward_port"].as<int>(),
-        vm["report_port"].as<int>(),
+        vm["reporter_port"].as<int>(),
         vm["outward_server_threads"].as<int>(),
         vm["inward_server_threads"].as<int>(),
         vm["icp_threads"].as<int>(),

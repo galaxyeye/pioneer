@@ -20,8 +20,8 @@
  *    limitations under the License.
  */
 
-#ifndef NET_MULTICAST_H_
-#define NET_MULTICAST_H_
+#ifndef PIONEER_NET_MULTICAST_H_
+#define PIONEER_NET_MULTICAST_H_
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -34,28 +34,24 @@
 #include <glog/logging.h>
 
 #include <pioneer/net/ip.h>
-#include <pioneer/net/config.h>
-#include <pioneer/system/status.h>
 
 namespace pioneer {
   namespace net {
 
-    // ip, data buffer, data size
+    // The arguments are : source ip, data buffer, data size
     typedef std::function<void(const std::string&, const char*, size_t)> mcast_message_callback;
 
+    // TODO : move to config file
+    static const int MULTICAST_PORT = 1234;
+    static const size_t RECV_BUFFER_SIZE = 220 * 1024;
+    static const int MESSAGE_BUFFER_SIZE = 3.5 * 1024;
+    static const int MAX_WAIT_TIME = 2;
+
     class mcast_server {
-
-      // TODO : move to config file
-      const static int MESSAGE_BUFFER_SIZE = 3.5 * 1024;
-      const static int MULTIPORT = 1234;
-      const static int BUFLEN = 256;
-      const static size_t RECVBUFFER_SIZE = 220 * 1024;
-      const static size_t BUF_SIZE = 3.5 * 1024;
-
     public:
 
       mcast_server(const char* multi_group) : _running(false), _recv_sockfd(0), _from_addr_len(sizeof(sockaddr_in)) {
-        int recv_buf_size = RECVBUFFER_SIZE;
+        int recv_buf_size = RECV_BUFFER_SIZE;
         struct sockaddr_in mcast_addr;
         struct ip_mreq recv_mcast_req;
 
@@ -68,7 +64,7 @@ namespace pioneer {
         bzero(&mcast_addr, sizeof(struct sockaddr_in));
         mcast_addr.sin_family = AF_INET;
         mcast_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        mcast_addr.sin_port = htons(MULTIPORT);
+        mcast_addr.sin_port = htons(MULTICAST_PORT);
 
         if (bind(_recv_sockfd, (struct sockaddr *) &mcast_addr, sizeof(struct sockaddr_in)) == -1) {
           LOG(ERROR) << strerror(errno);
@@ -131,7 +127,7 @@ namespace pioneer {
             continue;
           }
 
-          ++status::mcast_received;
+          // ++system::status::mcast_received;
 
           // DLOG(INFO) << num_bytes << " bytes received from " << ip::get_ip_port(_from_addr);
 
@@ -168,11 +164,11 @@ namespace pioneer {
     private:
 
       friend class atlas::singleton<mcast_client>;
-      mcast_client() : _stopped(false), _send_buf_size(0), _mcast_addr_len(0), _send_sockfd(0) {
-        init();
-      }
 
     public:
+
+      mcast_client() : _send_buf_size(0), _mcast_addr_len(0), _send_sockfd(0) {
+      }
 
       ~mcast_client() {
         if (_send_sockfd) close(_send_sockfd);
@@ -180,13 +176,14 @@ namespace pioneer {
 
     public:
 
-      void stop() {
-        _stopped = true;
+      void init(const char* multi_group) {
+        // std::call_once(_init_once, __init, multi_group);
+        __init(multi_group);
+      }
 
-        if (_send_sockfd) {
-          close(_send_sockfd);
-          _send_sockfd = 0;
-        }
+      void stop() {
+        // std::call_once(_stop_once, __stop);
+        __stop();
       }
 
       int send(const std::string& message) {
@@ -194,8 +191,8 @@ namespace pioneer {
       }
 
       int send(const char* message, const int len) {
-        if (_stopped) {
-          LOG(INFO) << "sorry, have a rest";
+        if (!_send_sockfd) {
+          LOG(INFO) << "the socket is closed";
           return -1;
         }
 
@@ -209,15 +206,15 @@ namespace pioneer {
           return -1;
         }
 
-        ++status::mcast_sent;
+        // ++system::status::mcast_sent;
         // DLOG(INFO) << "multicast " << num_bytes << " bytes";
 
         return num_bytes;
       }
 
-    private:
+    protected:
 
-      void init() {
+      void __init(const char* multi_group) {
         _send_buf_size = RECV_BUFFER_SIZE;
 
         _send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -229,7 +226,7 @@ namespace pioneer {
         bzero(&_mcast_addr, sizeof(struct sockaddr_in));
         _mcast_addr.sin_family = AF_INET;
 
-        inet_pton(AF_INET, PIONEER_MULTIGROUP, &_mcast_addr.sin_addr);
+        inet_pton(AF_INET, multi_group, &_mcast_addr.sin_addr);
         _mcast_addr.sin_port = htons(MULTICAST_PORT);
         _mcast_addr_len = sizeof(_mcast_addr);
 
@@ -245,18 +242,26 @@ namespace pioneer {
         }
       }
 
+      void __stop() {
+        if (_send_sockfd) {
+          close(_send_sockfd);
+          _send_sockfd = 0;
+        }
+      }
+
     private:
 
-      std::atomic<bool> _stopped;
       int _send_buf_size;
       int _mcast_addr_len;
       int _send_sockfd;
       sockaddr_in _mcast_addr;
 
+      std::once_flag _init_once;
+      std::once_flag _stop_once;
       std::mutex _send_mutex;
     };
 
   } // net
 } // pioneer
 
-#endif /* NET_MULTICAST_H_ */
+#endif /* PIONEER_NET_MULTICAST_H_ */

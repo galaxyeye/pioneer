@@ -1,5 +1,5 @@
 /*
- * working_thread_pool.h
+ * thread_pool.h
  *
  *  Created on: Apr 23, 2011 ~ 2013
  *      Author: Vincent Zhang, ivincent.zhang@gmail.com
@@ -23,13 +23,13 @@
 #ifndef WORKER_THREAD_POOL_H_
 #define WORKER_THREAD_POOL_H_
 
-#include <boostplus/threadpool.hpp>
 #include <atlas/singleton.h>
+#include <atlas/thread_pool.h>
 
 namespace pioneer {
   namespace system {
 
-    typedef atlas::singleton<boostplus::threadpool::fifo_pool> worker_pool;
+    typedef atlas::singleton<atlas::fifo_thread_pool> worker_pool;
 
   } // net
 } // pioneer

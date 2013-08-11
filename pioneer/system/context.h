@@ -52,6 +52,19 @@ namespace pioneer {
       static std::mutex mutex;
     };
 
+    std::string context::local_ip;
+
+    std::atomic<bool> context::system_quitting = ATOMIC_VAR_INIT(false);
+
+    // TODO : check whether we need this
+    std::atomic<int> context::outside_node_count = ATOMIC_VAR_INIT(0);
+    std::atomic<int> context::inner_node_count = ATOMIC_VAR_INIT(0);
+
+    std::set<std::string> context::outside_ip_list;
+    std::set<std::string> context::inside_ip_list;
+
+    std::mutex context::mutex;
+
   } // system
 } // pioneer
 

@@ -20,8 +20,8 @@
  *    limitations under the License.
  */
 
-#ifndef NET_ERROR_H_
-#define NET_ERROR_H_
+#ifndef PIONEER_NET_ERROR_H_
+#define PIONEER_NET_ERROR_H_
 
 #include <string>
 #include <system_error>

@@ -20,21 +20,19 @@
  *    limitations under the License.
  */
 
-#ifndef NET_REQUEST_H_
-#define NET_REQUEST_H_
+#ifndef PIONEER_NET_REQUEST_H_
+#define PIONEER_NET_REQUEST_H_
 
 #include <string>
 #include <deque>
 
 #include <glog/logging.h>
-
 #include <boost/uuid/uuid.hpp>
+#include <atlas/rpc.h>
 
 #include <pioneer/system/context.h>
 #include <pioneer/net/ip.h>
-#include <pioneer/rfc/message.h>
-#include <pioneer/rfc/rfc.h>
-#include <pioneer/rfc/clients.h>
+#include <pioneer/net/rpc_clients.h>
 
 namespace pioneer {
   namespace net {
@@ -45,7 +43,7 @@ namespace pioneer {
     enum class error_category {
       no_error = 0,
       net_error,
-      rfc_error,
+      rpc_error,
       system_error,
       std_error,
       lib_3rd_error,
@@ -63,73 +61,25 @@ namespace pioneer {
     class request {
     public:
 
-      request(const uuid& session_id, const session_ptr& s, const char* message, size_t size, const string& source_ip_port) :
-          _message(message, size),
-          _session(s)
-      {
-        _fn_id = static_cast<int>(_message.header()->fn_id);
-        _client_type = static_cast<rfc::client_type>(_message.header()->client_type);
-        _return_type = static_cast<rfc::return_type>(_message.header()->return_type);
-      }
-
-      ~request() { }
+      request(const uuid& session_id, const session_ptr& s, const char* msg, size_t msg_size, const string& source_ip_port) :
+          _message(msg, msg_size), _session(s)
+      {}
 
     public:
 
       session_ptr session() const { return _session.lock(); }
 
-      int fn_id() const { return _fn_id; }
-
-      void invoke() noexcept {
-        rfc::rfc_context context(_client_type, _session_id, _source_ip_port);
-        rfc::rfc_result result;
-
-        try {
-          result = rfc::dispatcher_chain::dispatch(_fn_id, _rfc_str, context);
-        }
-        catch (const std::exception& err) {
-          LOG(ERROR) << err.what();
-          result = rfc::rfc_result {err.what(), error_category::std_error};
-        }
-        catch (const std::string& err) {
-          LOG(ERROR) << "[" << err << "]";
-          result = rfc::rfc_result {err, error_category::string_error};
-        }
-        catch (const char* err) {
-          LOG(ERROR) << "[" << err << "]";
-          result = rfc::rfc_result {err, error_category::cstring_error};
-        }
-        catch (...) {
-          LOG(ERROR) << "Unexpected error!!!";
-          result = rfc::rfc_result {"Unexpected error!!!", error_category::unknown_error};
-        }
-
-        respond(result);
-      }
-
-      void respond(const rfc::rfc_result& result) {
-        DLOG(INFO) << "respond rfc " << _fn_id << " to " << _client_type << ", " << _source_ip_port;
-
-        rfc::p2p_client client(_client_type, _source_ip_port);
-        if (_return_type == rfc::rfc_async_callback) {
-          client.call(rfc::builtin_rfc::resume_task, rfc::fn_ids::resume_task, _session_id, result, rfc::nilctx);
-        }
-        else if (_return_type == rfc::rfc_sync) {
-          client.call(rfc::builtin_rfc::resume_thread, rfc::fn_ids::resume_thread, _session_id, result, rfc::nilctx);
-        }
+      void execute() noexcept {
+        rpc::p2p_client response_client(_message.header()->client_id, _source_ip_port);
+        atlas::rpc::dispatcher_manager::execute(response_client, _message, _source_ip_port);
       }
 
     private:
 
-      rfc::message _message;
+      atlas::rpc::message _message;
       std::weak_ptr<pioneer::net::session> _session;
 
-      uuid _session_id;
-      int _fn_id;
-      rfc::client_type _client_type;
-      rfc::return_type _return_type;
       std::string _source_ip_port;
-      std::string _rfc_str;
     };
 
     typedef std::shared_ptr<request> request_ptr;
@@ -180,7 +130,7 @@ namespace pioneer {
     public:
 
       const request_ptr& build_request(const std::string& source_ip_port, const char* data, size_t len) {
-        const uuid& session_id = rfc::message::get_session_id(data, len);
+        const uuid& session_id = atlas::rpc::message::get_session_id(data, len);
 
         // DLOG(INFO) << "session : " << session_id;
 

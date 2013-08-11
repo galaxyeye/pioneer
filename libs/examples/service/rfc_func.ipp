@@ -1,5 +1,5 @@
 /*
- * rfc_func.ipp
+ * rpc_func.ipp
  *
  *  Created on: Oct 10, 2011
  *      Author: Vincent Zhang, ivincent.zhang@gmail.com
@@ -24,48 +24,82 @@
 
 #include <boost/tokenizer.hpp>
 
-#include <pioneer/rfc/rfc.h>
+#include <atlas/rpc.h>
 #include <pioneer/net/net.h>
 #include <pioneer/system/context.h>
 
 namespace pioneer {
-  namespace rfc {
+  namespace rpc {
 
-    struct p2n_callback {
-      p2n_callback(const rfc_context& c) : context(c) {}
+    using atlas::rpc::rpc_iarchive;
+    using atlas::rpc::rpc_context;
+    using atlas::rpc::rf_wrapper;
+    using atlas::rpc::async_task;
+    using atlas::rpc::rpc_callback_type;
+    using atlas::rpc::builtin_rfc;
+    using atlas::rpc::nilctx;
 
-      void operator()(size_t count, const string& data, int e, async_task& task) {
-        if (!data.empty()) { task.put_data(data); }
+    class customer_dispatcher {
+    public:
 
-        DLOG(INFO) << "got " << task.response_count() << " while " << task.expected_response_count()
-            << " expected, count " << count;
+      static boost::optional<rpc_result> dispatch(int fn_id, const std::string& message, const rpc_context& context) {
+        std::istringstream iss(message);
+        rpc_iarchive ia(iss);
 
-        if (task.ready()) {
-          rfc_result result(task.record_count(), task.merge_data());
-          p2p_client client(context.get_client_type(), context.source_ip_port());
-          client.call(builtin_rfc::resume_task, fn_ids::resume_task, context.session_id(), result, nilctx);
+        // LOG(INFO) << "dispatch " << method << " for " << context.session_id() << " from " << context.source_ip();
+
+        switch (fn_id) {
+        case fn_ids::announce_inner_node: {
+          rf_wrapper<decltype(rpc_func::announce_inner_node)> announce_inner_node(rpc_func::announce_inner_node, ia, context);
+          return announce_inner_node();
         }
-      }
+        break;
+        case fn_ids::cannounce_inner_node: {
+          rf_wrapper<decltype(rpc_func::cannounce_inner_node)> cannounce_inner_node(rpc_func::cannounce_inner_node, ia, context);
+          return cannounce_inner_node();
+        }
+        break;
+        case fn_ids::udp_test_received: {
+          rf_wrapper<decltype(rpc_func::udp_test_received)> udp_test_received(rpc_func::udp_test_received, ia, context);
+          return udp_test_received();
+        }
+        break;
+        case fn_ids::start_udp_test: {
+          rf_wrapper<decltype(rpc_func::start_udp_test)> start_udp_test(rpc_func::start_udp_test, ia, context);
+          return start_udp_test();
+        }
+        break;
+        case fn_ids::cstart_udp_test: {
+          rf_wrapper<decltype(rpc_func::cstart_udp_test)> cstart_udp_test(rpc_func::cstart_udp_test, ia, context);
+          return cstart_udp_test();
+        }
+        break;
+        default:
+          // not be responsible to this rpc
+          return boost::none;
+          // DLOG(INFO) << "no method " << method;
+        break;
+        } // switch
 
-      rfc_context context;
+        return boost::none;
+      }
     };
 
     struct ack_callback {
       ack_callback(unsigned long long r) : round(r) {}
 
-      void operator()(size_t count, const string& data, int e, async_task& task) {
-        DLOG(INFO) << "got " << task.response_count() << " while " << task.expected_response_count()
-            << " expected, count " << count;
+      void operator()(const string& data, int e, async_task& task) {
+        DLOG(INFO) << "got " << task.response_count() << " while " << task.expected_response_count();
 
         if (task.ready()) {
-          ++status::good_ack[round];
+          ++system::status::good_ack[round];
         }
       }
 
       unsigned long long round;
     };
 
-    rfc_result rfc_func::announce_inner_node(const string& ip, rfc_context c) {
+    rpc_result rpc_func::announce_inner_node(const string& ip, rpc_context c) noexcept {
       DLOG(INFO) << "received announcing data node " << ip;
 
       // catalog and every data node connected to the target data node, including himself
@@ -74,7 +108,7 @@ namespace pioneer {
       return nullptr;
     }
 
-    rfc_result rfc_func::cannounce_inner_node(const string& ip_list, rfc_context c) {
+    rpc_result rpc_func::cannounce_inner_node(const string& ip_list, rpc_context c) noexcept {
       DLOG(INFO) << "announcing data nodes " << ip_list;
 
       boost::char_separator<char> sep(",");
@@ -88,7 +122,7 @@ namespace pioneer {
       return nullptr;
     }
 
-    rfc_result rfc_func::outer_node_quit(rfc_context c) {
+    rpc_result rpc_func::outer_node_quit(rpc_context c) noexcept {
       DLOG(INFO) << "out side node quit";
 
       std::string ip = ip::get_ip_part(c.source_ip_port());
@@ -104,7 +138,7 @@ namespace pioneer {
       return nullptr;
     }
 
-    rfc_result rfc_func::inner_node_quit(rfc_context c) {
+    rpc_result rpc_func::inner_node_quit(rpc_context c) noexcept {
       DLOG(INFO) << "inner node quit";
 
       std::string ip = ip::get_ip_part(c.source_ip_port());
@@ -120,39 +154,38 @@ namespace pioneer {
       return nullptr;
     }
 
-    rfc_result rfc_func::udp_test_received(int round, rfc_context c) {
-      ++status::udp_test_received[round];
+    rpc_result rpc_func::udp_test_received(int round, rpc_context c) noexcept {
+      ++system::status::udp_test_received[round];
 
-      rfc_result r(true);
-      return r;
+      return nullptr;
     }
 
-    rfc_result rfc_func::cstart_udp_test(int rounds, int test_count, int interval, int rest_time, rfc_context c) {
+    rpc_result rpc_func::cstart_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept {
       mcast_client client;
       client.call(start_udp_test, fn_ids::start_udp_test, rounds, test_count, interval, rest_time, nilctx);
 
       return nullptr;
     }
 
-    rfc_result rfc_func::start_udp_test(int rounds, int test_count, int interval, int rest_time, rfc_context c) {
+    rpc_result rpc_func::start_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept {
       ::sleep(rest_time);
 
-      status::test_rounds = rounds;
+      system::status::test_rounds = rounds;
 
       // wait for 5 seconds and then we begin to test
       for (int i = 0; i < rounds; ++i) {
         int count = test_count;
-        status::udp_test_interval[i] = interval * (rounds - i);
+        system::status::udp_test_interval[i] = interval * (rounds - i);
 
         while (0 < count--) {
-          ::usleep(status::udp_test_interval[i]);
+          ::usleep(system::status::udp_test_interval[i]);
 
           ack_callback ack_cb(i);
           rpc_callback_type cb(ack_cb);
           mcast_client client(inward_client, system::context::inner_node_count);
           client.call(udp_test_received, fn_ids::udp_test_received, cb, i, nilctx);
 
-          ++status::udp_test_sent[i];
+          ++system::status::udp_test_sent[i];
         }
 
         sleep(rest_time);
@@ -161,5 +194,5 @@ namespace pioneer {
       return nullptr;
     }
 
-  } // rfc
+  } // rpc
 } // mevo

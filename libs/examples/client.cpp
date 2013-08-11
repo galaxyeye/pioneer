@@ -23,33 +23,27 @@
 #include <functional>
 
 #include <boost/bind.hpp>
-
 #include <glog/logging.h>
-
 #include <atlas/console.h>
-
+#include <atlas/rpc.h>
 #include <muduo/net/TcpClient.h>
 #include <muduo/net/TcpConnection.h>
 #include <muduo/net/EventLoopThread.h>
 
-#include <pioneer/rfc/message.h>
-
-#include <libs/commander.h>
-
-#include <pioneer/post_include.h>
+#include "commander.h"
 
 using namespace pioneer;
 using namespace muduo;
 using namespace muduo::net;
 
-class db_client {
+class pioneer_client {
 public:
 
-  db_client(EventLoop* loop, const InetAddress& listenAddr) :
-      _loop(loop), _client(loop, listenAddr, "db_client")
+  pioneer_client(EventLoop* loop, const InetAddress& listenAddr) :
+      _loop(loop), _client(loop, listenAddr, "pioneer_client")
   {
-    _client.setConnectionCallback(boost::bind(&db_client::on_connection, this, _1));
-    _client.setMessageCallback(boost::bind(&db_client::on_message, this, _1, _2, _3));
+    _client.setConnectionCallback(boost::bind(&pioneer_client::on_connection, this, _1));
+    _client.setMessageCallback(boost::bind(&pioneer_client::on_message, this, _1, _2, _3));
     _client.enableRetry();
   }
 
@@ -57,7 +51,7 @@ public:
 
   void disconnect() { _client.disconnect(); }
 
-  void send(const std::string& message) { _connection->send(message.c_str(), message.size()); }
+  void send(const std::string& message) { _connection->send(message.data(), message.size()); }
 
   void send(const char* message, size_t size) { _connection->send(message, size); }
 
@@ -74,7 +68,7 @@ private:
    * */
   void on_message(const TcpConnectionPtr& conn, Buffer* buf, muduo::Timestamp) {
     size_t bytes_received = buf->readableBytes();
-    auto header = reinterpret_cast<const rfc::request_header*>(buf->peek());
+    auto header = reinterpret_cast<const atlas::rpc::request_header*>(buf->peek());
 
     if (bytes_received < sizeof(header->length) || (int32_t)bytes_received < header->length) {
       LOG(INFO) << "I will read more data. Read " << bytes_received
@@ -82,12 +76,12 @@ private:
       return;
     }
 
-    buf->retrieve(sizeof(rfc::request_header));
-    std::string rfc_str(buf->peek(), buf->readableBytes());
+    buf->retrieve(sizeof(atlas::rpc::request_header));
+    std::string rpc_str(buf->peek(), buf->readableBytes());
 
-    if (!rfc_str.empty()) {
+    if (!rpc_str.empty()) {
       int method = static_cast<int>(header->fn_id);
-      rfc::dispatcher_chain::dispatch(method, rfc_str, nullptr);
+      atlas::rpc::dispatcher_manager::dispatch(method, rpc_str, nullptr);
     }
     else {
       LOG(ERROR) << "empty message!";
@@ -106,14 +100,14 @@ int main(int argc, char* argv[]) {
   if (argc > 2) {
     EventLoopThread loopThread;
     uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
-    InetAddress serverAddr(argv[1], port);
+    InetAddress server_addr(argv[1], port);
 
-    db_client client(loopThread.startLoop(), serverAddr);
+    pioneer_client client(loopThread.startLoop(), server_addr);
     client.connect();
-    rfc::commander<db_client> commander(client);
+    rpc::commander<pioneer_client> commander(client);
 
     const char* line;
-    clown::console console("pioneer >", "/tmp/morpheus_console_history");
+    atlas::console console("pioneer >", "/tmp/pioneer_console_history");
     while ((line = console.getline()) != NULL) {
       if (line[0] != '\0') {
         if (!strcmp(line, "quit")) {

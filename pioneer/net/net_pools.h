@@ -20,8 +20,8 @@
  *    limitations under the License.
  */
 
-#ifndef NET_POOLS_H_
-#define NET_POOLS_H_
+#ifndef PIONEER_NET_POOLS_H_
+#define PIONEER_NET_POOLS_H_
 
 #include <string>
 #include <atomic>
@@ -29,12 +29,11 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <boost/optional.hpp>
 #include <boost/bind.hpp>
 #include <boost/ptr_container/ptr_map.hpp>
 #include <glog/logging.h>
 #include <atlas/singleton.h>
-#include <atlas/concurrent_box.h>
+#include <atlas/container/blocking_concurrent_box.h>
 #include <muduo/net/EventLoopThreadPool.h>
 #include <muduo/net/TcpClient.h>
 #include <muduo/net/TcpConnection.h>
@@ -50,7 +49,7 @@ namespace pioneer {
     class connection_pool : public atlas::singleton<connection_pool<pool_tag>> {
     public:
 
-      // static const uint64_t default_wait_time = 60 * 1000; // 1 minute
+      const uint64_t default_wait_time = 60 * 1000; // 1 minute
 
       typedef std::map<std::string, mn::TcpConnectionPtr>::const_iterator iterator;
 
@@ -60,16 +59,17 @@ namespace pioneer {
       connection_pool(connection_pool&)= delete;
       connection_pool& operator=(const connection_pool&)= delete;
 
-      // connection_pool() : _wait_time(default_wait_time) {}
-
     public:
 
-      // take a connection and remove it from the pool, so it's safe in multi-thread environment
+      // TODO : make it private
+      connection_pool() : _connections(std::chrono::microseconds(default_wait_time)) {}
+
+      // take a connection and remove it from the pool
       mn::TcpConnectionPtr take(const std::string& ip_port) {
-        return _connections.take(ip_port);
+        return *_connections.take(ip_port);
       }
 
-      mn::TcpConnectionPtr random_take() { return _connections.random_take(); }
+      mn::TcpConnectionPtr random_take() { return *_connections.random_take(); }
 
       void put(const mn::TcpConnectionPtr& conn) {
         auto ip_port = conn->peerAddress().toIpPort();
@@ -92,7 +92,7 @@ namespace pioneer {
 
     private:
 
-      atlas::concurrent_box<std::string, mn::TcpConnectionPtr> _connections;
+      atlas::blocking_concurrent_box<std::string, mn::TcpConnectionPtr> _connections;
     };
 
     // we may need several different TCP client pool singletons, so we make it a template
@@ -107,6 +107,9 @@ namespace pioneer {
 
       typedef boost::ptr_multimap<std::string, mn::TcpClient> tcp_client_container;
 
+    public:
+
+      // TODO : make it private
       tcp_client_pool() : _stopping(false), _stopped(false), _thread_num(1), _server_port(0), _base_loop(nullptr) {}
 
       /// init/deinit section
@@ -325,7 +328,5 @@ namespace pioneer {
 
   } // net
 } // pioneer
-
-
 
 #endif /* NET_POOLS_H_ */

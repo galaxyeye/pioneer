@@ -1,5 +1,5 @@
 /*
- * rfc_func.h
+ * rpc_func.h
  *
  *  Created on: Oct 10, 2011
  *      Author: Vincent Zhang, ivincent.zhang@gmail.com
@@ -26,32 +26,36 @@
 #include <string>
 
 #include <boost/uuid/uuid.hpp>
-#include <atlas/func_wrapper.h>
-#include <pioneer/rfc/rfc.h>
+#include <atlas/rpc/rpc.h>
 
 namespace pioneer {
-  namespace rfc {
+  namespace rpc {
 
     using std::string;
+    using atlas::rpc::rpc_result;
+    using atlas::rpc::rpc_context;
 
-    class rfc_func {
+    // the implementation of this class may include many files in the other modules, for example, database access module
+    // but the signature of the functions should be used by the client code, so just split the declaration and the
+    // implementation
+    class rpc_func {
     public:
 
-      static rfc_result announce_inner_node(const string& ip, rfc_context c);
+      static rpc_result announce_inner_node(const string& ip, rpc_context c) noexcept;
 
-      static rfc_result cannounce_inner_node(const string& ip_list, rfc_context c);
-
-      // execute on catalog only
-      static rfc_result outer_node_quit(rfc_context c);
+      static rpc_result cannounce_inner_node(const string& ip_list, rpc_context c) noexcept;
 
       // execute on catalog only
-      static rfc_result inner_node_quit(rfc_context c);
+      static rpc_result outer_node_quit(rpc_context c) noexcept;
 
-      static rfc_result udp_test_received(int round, rfc_context c);
+      // execute on catalog only
+      static rpc_result inner_node_quit(rpc_context c) noexcept;
 
-      static rfc_result cstart_udp_test(int rounds, int test_count, int interval, int rest_time, rfc_context c);
+      static rpc_result udp_test_received(int round, rpc_context c) noexcept;
 
-      static rfc_result start_udp_test(int rounds, int test_count, int interval, int rest_time, rfc_context c);
+      static rpc_result cstart_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept;
+
+      static rpc_result start_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept;
 
     };
 
@@ -70,56 +74,7 @@ namespace pioneer {
     REGISTER_REMOTE_FUNC(cstart_udp_test, 112);
     REGISTER_REMOTE_FUNC(stop_udp_test, 113);
 
-    using atlas::func_wrapper;
-
-    class customer_dispatcher {
-    public:
-
-      static rfc_result dispatch(int fn_id, const std::string& message, const rfc_context& context) {
-        std::istringstream iss(message);
-        rfc_iarchive ia(iss);
-
-        // LOG(INFO) << "dispatch " << method << " for " << context.session_id() << " from " << context.source_ip();
-
-        rfc_result result(false); // assume i am not responsible to this function call
-        switch (fn_id) {
-        case fn_ids::announce_inner_node: {
-          func_wrapper<decltype(rfc_func::announce_inner_node)> announce_inner_node(rfc_func::announce_inner_node, ia, context);
-          result = announce_inner_node();
-        }
-        break;
-        case fn_ids::cannounce_inner_node: {
-          func_wrapper<decltype(rfc_func::cannounce_inner_node)> cannounce_inner_node(rfc_func::cannounce_inner_node, ia, context);
-          result = cannounce_inner_node();
-        }
-        break;
-        case fn_ids::udp_test_received: {
-          func_wrapper<decltype(rfc_func::udp_test_received)> udp_test_received(rfc_func::udp_test_received, ia, context);
-          result = udp_test_received();
-        }
-        break;
-        case fn_ids::start_udp_test: {
-          func_wrapper<decltype(rfc_func::start_udp_test)> start_udp_test(rfc_func::start_udp_test, ia, context);
-          result = start_udp_test();
-        }
-        break;
-        case fn_ids::cstart_udp_test: {
-          func_wrapper<decltype(rfc_func::cstart_udp_test)> cstart_udp_test(rfc_func::cstart_udp_test, ia, context);
-          result = cstart_udp_test();
-        }
-        break;
-          default:
-          // not be responsible to this rfc
-          // DLOG(INFO) << "no method " << method;
-        break;
-        } // switch
-
-        return result;
-      }
-
-    };
-
-  } // rfc
+  } // rpc
 } // pioneer
 
 #endif /* RFC_SERVICE_RFC_FUNC_H_ */

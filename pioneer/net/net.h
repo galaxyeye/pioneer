@@ -20,8 +20,8 @@
  *    limitations under the License.
  */
 
-#ifndef PIONEER_SERVERS_H_
-#define PIONEER_SERVERS_H_
+#ifndef PIONEER_NET_NET_H_
+#define PIONEER_NET_NET_H_
 
 #include <muduo/net/TcpServer.h>
 #include <muduo/net/http/HttpServer.h>
@@ -56,4 +56,4 @@ namespace pioneer {
   } // net
 } // pioneer
 
-#endif /* PIONEER_SERVERS_H_ */
+#endif /* PIONEER_NET_NET_H_ */

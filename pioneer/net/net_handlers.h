@@ -20,18 +20,18 @@
  *    limitations under the License.
  */
 
-#ifndef NET_HANDLERS_H_
-#define NET_HANDLERS_H_
+#ifndef PIONEER_NET_HANDLERS_H_
+#define PIONEER_NET_HANDLERS_H_
 
 #include <glog/logging.h>
 #include <glog/stl_logging.h>
-#include <atlas/iomanip.h> // put_time
+#include <atlas/io/iomanip.h> // put_time
+#include <atlas/rpc.h>
 #include <muduo/net/http/HttpRequest.h>
 #include <muduo/net/http/HttpResponse.h>
 
 #include <pioneer/net/ip.h>
-#include <pioneer/net/request.h>
-#include <pioneer/rfc/rfc.h>
+// #include <pioneer/net/request.h>
 #include <pioneer/system/status.h>
 #include <pioneer/system/context.h>
 #include <pioneer/system/thread_pool.h>
@@ -99,8 +99,6 @@ namespace pioneer {
         bool connected = conn->connected();
         if (connected) {
           outward_connection_pool::ref().put(conn);
-
-          ++status::active_outer_connections;
         }
         else {
           outward_connection_pool::ref().erase(peer_ip_port);
@@ -110,9 +108,6 @@ namespace pioneer {
           // and close the socket file descriptor
           // TODO : we should check this api for sure
           conn->connectDestroyed();
-
-          --status::active_outer_connections;
-          ++status::failed_outer_connections;
         }
       }
 
@@ -123,8 +118,6 @@ namespace pioneer {
         bool connected = conn->connected();
         if (connected) {
           inward_connection_pool::ref().put(conn);
-
-          ++status::active_inner_connections;
         }
         else {
           inward_connection_pool::ref().erase(peer_ip_port);
@@ -134,9 +127,6 @@ namespace pioneer {
           // and close the socket file descriptor
           // TODO : we should check this api for sure
           conn->connectDestroyed();
-
-          --status::active_inner_connections;
-          ++status::failed_inner_connections;
         }
       }
 
@@ -242,7 +232,7 @@ namespace pioneer {
         DLOG(INFO) << "message: " << len << " bytes, "
             << conn->peerAddress().toIpPort() << " -> " << conn->localAddress().toIpPort();
 
-        const rfc::request_header* header = reinterpret_cast<const rfc::request_header*>(buf->peek());
+        const atlas::rpc::request_header* header = reinterpret_cast<const atlas::rpc::request_header*>(buf->peek());
 
         // TODO : TCP stick package problem
 
@@ -272,7 +262,7 @@ namespace pioneer {
           response->setStatusMessage("OK");
           response->setContentType("text/html");
 
-          time_t then = status::last_check_time.load();
+          time_t then = system::status::last_check_time;
           time_t now = std::time(0);
           time_t elapsed = now - then;
 
@@ -281,41 +271,32 @@ namespace pioneer {
               << "<li>" << "last check time:" << atlas::put_time(std::localtime(&then), "%F %T") << "</li>"
               << "<li>" << "now:" << atlas::put_time(std::localtime(&now), "%F %T") << "</li>"
               << "<li>" << "elapsed:" << elapsed << "s</li>"
-
-              << "<li>" << "---------------------------------------------------" << "</li>"
-              << "<li>" << "active_outside_connections:" << status::active_outer_connections << "</li>"
-              << "<li>" << "active_inside_connections:" << status::active_inner_connections << "</li>"
-
-              << "<li>" << "---------------------------------------------------" << "</li>"
-              << "<li>" << "mcast_sent:" << status::mcast_sent << "</li>"
-              << "<li>" << "mcast_received:" << status::mcast_received << "</li>"
-
               << "</ol>";
 
           std::stringstream ss2;
           ss2 << "<ol>";
-          for (size_t i = 0; i < status::test_rounds; ++i) {
-            unsigned long long sent = status::udp_test_sent[i];
-            double failure_rate = (sent == 0) ? 0 : (1 - 1.0 * status::good_ack[i] / sent);
+          for (size_t i = 0; i < system::status::test_rounds; ++i) {
+            unsigned long long sent = system::status::udp_test_sent[i];
+            double failure_rate = (sent == 0) ? 0 : (1 - 1.0 * system::status::good_ack[i] / sent);
 
             ss2 << "<li>"
-                << "<span style='padding:10px'>" << "mcast sent:" << status::udp_test_sent[i] << "</span>"
-                << "<span style='padding:10px'>" << "mcast received:" << status::udp_test_received[i] << "</span>"
-                << "<span style='padding:10px'>" << "interval:" << (status::udp_test_interval[i] / 1000.0) << "ms</span>"
-                << "<span style='padding:10px'>" << "good ack:" << status::good_ack[i] << "</span>"
+                << "<span style='padding:10px'>" << "mcast sent:" << system::status::udp_test_sent[i] << "</span>"
+                << "<span style='padding:10px'>" << "mcast received:" << system::status::udp_test_received[i] << "</span>"
+                << "<span style='padding:10px'>" << "interval:" << (system::status::udp_test_interval[i] / 1000.0) << "ms</span>"
+                << "<span style='padding:10px'>" << "good ack:" << system::status::good_ack[i] << "</span>"
                 << "<span style='padding:10px'>" << "failure rate:" << 100 * failure_rate << "%</span>"
                 << "</li>";
           }
           ss2 << "</ol>";
 
           std::stringstream ss3;
-          ss3 << "<html><head><title>Pioneer server status report</title></head>"
-              << "<body><h1>Pioneer server status report</h1>"
+          ss3 << "<html><head><title>pioneer server status report</title></head>"
+              << "<body><h1>pioneer server status report</h1>"
               << ss.str()
               << ss2.str()
               << "</body></html>";
 
-          status::last_check_time = now;
+          system::status::last_check_time = now;
 
           std::string str = ss3.str();
           muduo::string result(str.data(), str.size());
@@ -329,8 +310,8 @@ namespace pioneer {
       }
 
       static void run_task(const std::string& source_ip_port, const char* message, size_t len) {
-        auto request = session_manager::ref().build_request(source_ip_port, message, len);
-        system::worker_pool::ref().schedule(std::bind(&request::invoke, request));
+//        auto request = session_manager::ref().build_request(source_ip_port, message, len);
+//        system::worker_pool::ref().schedule(std::bind(&request::execute, request));
       }
 
     };

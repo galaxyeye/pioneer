@@ -20,11 +20,10 @@
  *    limitations under the License.
  */
 
-#ifndef NET_IP_H_
-#define NET_IP_H_
+#ifndef PIONEER_NET_IP_H_
+#define PIONEER_NET_IP_H_
 
 #include <arpa/inet.h>
-
 #include <cstring>
 
 namespace pioneer {
