@@ -67,16 +67,20 @@ namespace pioneer {
       }
     };
 
+    // TODO : there might bugs
+    // 1. can we write a free function in a .h file?
+    // 2. can we use static native variable to make the category is unique?
+    //    seams have problems in multi-thread environment
     const std::error_category& net_error_category() throw () {
       static net_error_category_impl instance;
       return instance;
     }
 
-    std::error_code make_error_code(errc e) {
+    inline std::error_code make_error_code(errc e) {
       return std::error_code(static_cast<int>(e), net_error_category());
     }
 
-    std::error_condition make_error_condition(errc e) {
+    inline std::error_condition make_error_condition(errc e) {
       return std::error_condition(static_cast<int>(e), net_error_category());
     }
 
