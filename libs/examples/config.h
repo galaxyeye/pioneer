@@ -8,6 +8,8 @@
 #ifndef PIONEER_CONFIG_H_
 #define PIONEER_CONFIG_H_
 
+#define ATLAS_DEBUG_RPC 1
+
 const char* PIONEER_MULTIGROUP = "234.1.1.18";
 
 const int PIONEER_OUTWARD_SERVER_PORT = 9100;

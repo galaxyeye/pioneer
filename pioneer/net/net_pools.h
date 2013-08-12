@@ -34,6 +34,7 @@
 #include <glog/logging.h>
 #include <atlas/singleton.h>
 #include <atlas/container/blocking_concurrent_box.h>
+#include <muduo/net/EventLoop.h>
 #include <muduo/net/EventLoopThreadPool.h>
 #include <muduo/net/TcpClient.h>
 #include <muduo/net/TcpConnection.h>
@@ -66,6 +67,8 @@ namespace pioneer {
 
       // take a connection and remove it from the pool
       mn::TcpConnectionPtr take(const std::string& ip_port) {
+        DLOG(INFO) << "take connection for" << ip_port;
+
         return *_connections.take(ip_port);
       }
 
@@ -81,7 +84,7 @@ namespace pioneer {
       void erase(const std::string& ip_port) {
         _connections.erase(ip_port);
 
-        LOG(INFO) << "pool size : " << _connections.size();
+        DLOG(INFO) << "pool size : " << _connections.size();
       }
 
       void clear() { _connections.clear(); }

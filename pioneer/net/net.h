@@ -26,6 +26,7 @@
 #include <muduo/net/TcpServer.h>
 #include <muduo/net/http/HttpServer.h>
 
+#include <pioneer/net/multicast.h>
 #include <pioneer/net/net_pools.h>
 
 namespace pioneer {

@@ -20,7 +20,11 @@
  *    limitations under the License.
  */
 
+#ifndef RFC_SERVICE_RFC_FUNC_SERVER_H_
+#define RFC_SERVICE_RFC_FUNC_SERVER_H_
+
 #include <iterator>
+#include <numeric>
 
 #include <boost/tokenizer.hpp>
 
@@ -39,52 +43,6 @@ namespace pioneer {
     using atlas::rpc::builtin_rfc;
     using atlas::rpc::nilctx;
 
-    class customer_dispatcher {
-    public:
-
-      static boost::optional<rpc_result> dispatch(int fn_id, const std::string& message, const rpc_context& context) {
-        std::istringstream iss(message);
-        rpc_iarchive ia(iss);
-
-        // LOG(INFO) << "dispatch " << method << " for " << context.session_id() << " from " << context.source_ip();
-
-        switch (fn_id) {
-        case fn_ids::announce_inner_node: {
-          rf_wrapper<decltype(rpc_func::announce_inner_node)> announce_inner_node(rpc_func::announce_inner_node, ia, context);
-          return announce_inner_node();
-        }
-        break;
-        case fn_ids::cannounce_inner_node: {
-          rf_wrapper<decltype(rpc_func::cannounce_inner_node)> cannounce_inner_node(rpc_func::cannounce_inner_node, ia, context);
-          return cannounce_inner_node();
-        }
-        break;
-        case fn_ids::udp_test_received: {
-          rf_wrapper<decltype(rpc_func::udp_test_received)> udp_test_received(rpc_func::udp_test_received, ia, context);
-          return udp_test_received();
-        }
-        break;
-        case fn_ids::start_udp_test: {
-          rf_wrapper<decltype(rpc_func::start_udp_test)> start_udp_test(rpc_func::start_udp_test, ia, context);
-          return start_udp_test();
-        }
-        break;
-        case fn_ids::cstart_udp_test: {
-          rf_wrapper<decltype(rpc_func::cstart_udp_test)> cstart_udp_test(rpc_func::cstart_udp_test, ia, context);
-          return cstart_udp_test();
-        }
-        break;
-        default:
-          // not be responsible to this rpc
-          return boost::none;
-          // DLOG(INFO) << "no method " << method;
-        break;
-        } // switch
-
-        return boost::none;
-      }
-    };
-
     struct ack_callback {
       ack_callback(unsigned long long r) : round(r) {}
 
@@ -99,6 +57,11 @@ namespace pioneer {
       unsigned long long round;
     };
 
+    // we accumulate all the numbers in the vector and return the result to the client
+    rpc_result rpc_func::accumulate(const std::vector<int>& numbers, rpc_context c) noexcept {
+      return rpc_result(std::to_string(std::accumulate(numbers.begin(), numbers.end(), 0)));
+    }
+
     rpc_result rpc_func::announce_inner_node(const string& ip, rpc_context c) noexcept {
       DLOG(INFO) << "received announcing data node " << ip;
 
@@ -112,44 +75,12 @@ namespace pioneer {
       DLOG(INFO) << "announcing data nodes " << ip_list;
 
       boost::char_separator<char> sep(",");
-      boost::tokenizer<boost::char_separator<char>> token(ip_list, sep);
+      boost::tokenizer<boost::char_separator<char>> tokens(ip_list, sep);
 
-      for (auto it = token.begin(); it != token.end(); ++it) {
+      for (const auto& token : tokens) {
         mcast_client client;
-        client.call(announce_inner_node, fn_ids::announce_inner_node, *it, nilctx);
+        client.call(announce_inner_node, fn_ids::announce_inner_node, token, nilctx);
       }
-
-      return nullptr;
-    }
-
-    rpc_result rpc_func::outer_node_quit(rpc_context c) noexcept {
-      DLOG(INFO) << "out side node quit";
-
-      std::string ip = ip::get_ip_part(c.source_ip_port());
-
-      // critical area
-      {
-        std::lock_guard<std::mutex> guard(system::context::mutex);
-        system::context::outside_ip_list.erase(ip);
-      }
-
-      DLOG(INFO) << "remove app engine " << ip;
-
-      return nullptr;
-    }
-
-    rpc_result rpc_func::inner_node_quit(rpc_context c) noexcept {
-      DLOG(INFO) << "inner node quit";
-
-      std::string ip = ip::get_ip_part(c.source_ip_port());
-
-      // critical area
-      {
-        std::lock_guard<std::mutex> guard(system::context::mutex);
-        system::context::inside_ip_list.erase(ip);
-      }
-
-      DLOG(INFO) << "remove data node " << ip;
 
       return nullptr;
     }
@@ -188,11 +119,69 @@ namespace pioneer {
           ++system::status::udp_test_sent[i];
         }
 
-        sleep(rest_time);
+        ::sleep(rest_time);
       }
 
       return nullptr;
     }
 
+    // TODO : use meta programming to improve such a complex, ugly code segment
+    class rpc_dispatcher {
+    public:
+
+      static boost::optional<rpc_result> dispatch(int fn_id, const std::string& message, const rpc_context& context) {
+        std::istringstream iss(message);
+        rpc_iarchive ia(iss);
+
+        // LOG(INFO) << "dispatch " << method << " for " << context.session_id() << " from " << context.source_ip();
+
+        switch (fn_id) {
+        case fn_ids::announce_inner_node: {
+          rf_wrapper<decltype(rpc_func::announce_inner_node)> announce_inner_node(rpc_func::announce_inner_node, ia, context);
+          return announce_inner_node();
+        }
+        break;
+        case fn_ids::cannounce_inner_node: {
+          rf_wrapper<decltype(rpc_func::cannounce_inner_node)> cannounce_inner_node(rpc_func::cannounce_inner_node, ia, context);
+          return cannounce_inner_node();
+        }
+        break;
+        case fn_ids::accumulate: {
+          rf_wrapper<decltype(rpc_func::accumulate)> accumulate(rpc_func::accumulate, ia, context);
+          return accumulate();
+        }
+        break;
+        case fn_ids::udp_test_received: {
+          rf_wrapper<decltype(rpc_func::udp_test_received)> udp_test_received(rpc_func::udp_test_received, ia, context);
+          return udp_test_received();
+        }
+        break;
+        case fn_ids::start_udp_test: {
+          rf_wrapper<decltype(rpc_func::start_udp_test)> start_udp_test(rpc_func::start_udp_test, ia, context);
+          return start_udp_test();
+        }
+        break;
+        case fn_ids::cstart_udp_test: {
+          rf_wrapper<decltype(rpc_func::cstart_udp_test)> cstart_udp_test(rpc_func::cstart_udp_test, ia, context);
+          return cstart_udp_test();
+        }
+        break;
+        default:
+          // not be responsible to this rpc
+          return boost::none;
+          // DLOG(INFO) << "no method " << method;
+        break;
+        } // switch
+
+        return boost::none;
+      }
+    };
+
   } // rpc
-} // mevo
+} // pioneer
+
+// must be placed outside any namespace due to macro's limitation
+// it might be better to use meta programming technology to implement the registering
+ATLAS_REGISTER_RPC_DISPATCHER(pioneer_main_module, pioneer::rpc::rpc_dispatcher::dispatch);
+
+#endif // RFC_SERVICE_RFC_FUNC_SERVER_H_

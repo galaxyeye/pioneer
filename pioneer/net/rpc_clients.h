@@ -24,8 +24,6 @@
 #define PIONEER_RPC_CLIENTS_H_
 
 #include <atlas/rpc/rpc.h>
-
-#include <pioneer/net/multicast.h>
 #include <pioneer/net/net.h>
 
 namespace pioneer {
@@ -34,7 +32,7 @@ namespace pioneer {
     using boost::uuids::nil_uuid;
     namespace mn = muduo::net;
 
-    enum client_type { outward_client, inward_client, any_client };
+    enum client_type { outward_client = 0x01, inward_client = 0x02, any_client = outward_client | inward_client };
 
     class bcast_client : public atlas::rpc::remote_caller {
     public:
@@ -78,11 +76,11 @@ namespace pioneer {
       virtual void send(const char* message, size_t size) {
         mn::TcpConnectionPtr conn;
 
-        if (client_type::inward_client & _client) {
+        if (!conn && (client_type::inward_client & _client)) {
           conn = net::inward_connection_pool::ref().take(_ip);
         }
 
-        if (client_type::outward_client & _client) {
+        if (!conn && (client_type::outward_client & _client)) {
           conn = net::outward_connection_pool::ref().take(_ip);
         }
 
@@ -100,6 +98,8 @@ namespace pioneer {
       std::string _ip;
     };
 
+    // random select a connection in the connection pool to send message
+    // for example, we need random select a proxy node in the cluster to do something
     class random_client : public atlas::rpc::remote_caller {
 
       random_client(client_type client) : atlas::rpc::remote_caller(client), _client_id(client) {}

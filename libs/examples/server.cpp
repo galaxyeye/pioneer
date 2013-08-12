@@ -20,6 +20,8 @@
  *    limitations under the License.
  */
 
+#include "config.h"
+
 #include <signal.h>
 
 #include <cstdlib>
@@ -37,14 +39,17 @@
 #include <pioneer/net/multicast.h>
 #include <pioneer/net/rpc_clients.h>
 
-#include "config.h"
 #include "service/rfc_func.h"
-#include "service/rfc_func.ipp"
+#include "service/rfc_func.server.ipp"
 
 namespace bf = boost::filesystem;
 
 using muduo::net::EventLoop;
 using muduo::net::InetAddress;
+using pioneer::net::connection_handler;
+using pioneer::net::message_handler;
+using pioneer::net::inward_tag;
+using pioneer::net::outward_tag;
 
 using namespace pioneer;
 
@@ -62,14 +67,9 @@ void at_signal() {
 
   system::context::system_quitting = true;
 
-  // TODO : buggy
-  rpc::mcast_client client;
-  client.call(rpc::rpc_func::inner_node_quit, rpc::fn_ids::inner_node_quit, rpc::nilctx);
-  sleep(2);
-
   net::inward_client_pool::ref().stop();
-
   net::mcast_client::ref().stop();
+
   if (g_mcast_server) g_mcast_server->stop();
   if (g_report_server_base_loop) g_report_server_base_loop->quit();
   if (g_inward_server_base_loop) g_inward_server_base_loop->quit();
@@ -136,12 +136,14 @@ public:
     start_inward_server();
 
     // ****************************** main TCP client service ***********************
-    // init inner client pool so that we can establish connections to other data nodes
+    // init inner client pool so that we can establish connections to other inner nodes
     init_inward_client_pool();
 
     sleep(5); // TODO : avoid hard coding
 
     LOG(INFO) << "\n\n====================let's go====================\n\n";
+
+    LOG(INFO) << "press Ctrl+c to exit";
 
     for (auto t : _main_threads) {
       t.second->join();
@@ -179,6 +181,9 @@ protected:
 
       g_report_server_base_loop.reset(new EventLoop);
       net::report_server server(g_report_server_base_loop.get(), _report_server_address, "report server");
+
+      server.setHttpCallback(boost::bind(message_handler::on_report_server_message, _1, _2));
+
       server.start();
       g_report_server_base_loop->loop();
 
@@ -222,8 +227,12 @@ protected:
       g_outward_server_base_loop.reset(new EventLoop);
       net::outward_server server(g_outward_server_base_loop.get(), _outward_server_address, "outward server");
       server.setThreadNum(_outward_server_threads);
-      server.start();
 
+      server.setConnectionCallback(boost::bind(connection_handler::on_outward_server_connection, _1));
+      server.setMessageCallback(boost::bind(message_handler::on_outward_server_message, _1, _2, _3));
+      server.setWriteCompleteCallback(boost::bind(connection_handler::on_write_complete<outward_tag>, _1));
+
+      server.start();
       g_outward_server_base_loop->loop();
 
       LOG(INFO) << "quit outward server";
@@ -242,10 +251,15 @@ protected:
       g_inward_server_base_loop.reset(new EventLoop);
       net::inward_server server(g_inward_server_base_loop.get(), _inward_server_address, "inward server");
       server.setThreadNum(_inward_server_threads);
+
+      server.setConnectionCallback(boost::bind(connection_handler::on_inward_server_connection, _1));
+      server.setMessageCallback(boost::bind(message_handler::on_inward_server_message, _1, _2, _3));
+      server.setWriteCompleteCallback(boost::bind(connection_handler::on_write_complete<inward_tag>, _1));
+
       server.start();
       g_inward_server_base_loop->loop();
 
-      LOG(INFO) << "quit inner server";
+      LOG(INFO) << "quit inward server";
     };
 
     // run in a new thread
@@ -254,11 +268,11 @@ protected:
 
   void init_inward_client_pool() {
     auto f = [this]() {
-      LOG(INFO) << "starting data node client pool service...";
+      LOG(INFO) << "starting inner node client pool service...";
 
       auto& tcp_client_pool = net::inward_client_pool::ref();
 
-      tcp_client_pool.set_server_port(PIONEER_INWARD_SERVER_PORT);
+      tcp_client_pool.set_server_port(PIONEER_INWARD_SERVER_PORT); // TODO : parameterize this
       tcp_client_pool.set_thread_num(_icp_threads);
 
       tcp_client_pool.set_connection_callback(boost::bind(net::connection_handler::on_inward_client_connection, _1));

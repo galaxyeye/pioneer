@@ -62,7 +62,7 @@ namespace pioneer {
     public:
 
       request(const uuid& session_id, const session_ptr& s, const char* msg, size_t msg_size, const string& source_ip_port) :
-          _message(msg, msg_size), _session(s)
+          _message(msg, msg_size), _session(s), _source_ip_port(source_ip_port)
       {}
 
     public:
@@ -71,7 +71,7 @@ namespace pioneer {
 
       void execute() noexcept {
         rpc::p2p_client response_client(static_cast<rpc::client_type>(_message.header()->client_id), _source_ip_port);
-        atlas::rpc::dispatcher_manager::execute(response_client, _message, _source_ip_port);
+        atlas::rpc::dispatcher_manager::ref().execute(response_client, _message, _source_ip_port);
       }
 
     private:

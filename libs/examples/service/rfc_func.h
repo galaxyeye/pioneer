@@ -26,53 +26,51 @@
 #include <string>
 
 #include <boost/uuid/uuid.hpp>
+#include <boost/serialization/vector.hpp>
+
 #include <atlas/rpc/rpc.h>
 
 namespace pioneer {
   namespace rpc {
 
     using std::string;
+    using atlas::rpc::rpc_iarchive;
+    using atlas::rpc::rf_wrapper;
     using atlas::rpc::rpc_result;
     using atlas::rpc::rpc_context;
 
-    // the implementation of this class may include many files in the other modules, for example, database access module
-    // but the signature of the functions should be used by the client code, so just split the declaration and the
-    // implementation
+    // the implementation of this class may include many files from the other modules
+    // but the caller side just need the function signatures, so we split the declaration and the
+    // implementation into different files
     class rpc_func {
     public:
 
+      // illustrate a normal async, non-void return RPC
+      // accumulate all the numbers in the vector and return a result to the client
+      static rpc_result accumulate(const std::vector<int>& numbers, rpc_context c) noexcept;
+
+      // illustrate a normal async, void return RPC
       static rpc_result announce_inner_node(const string& ip, rpc_context c) noexcept;
 
+      // illustrate a multicast, async, void return RPC
+      // c means cluster wide remote function call, we multicast the RPC, and execute it at each server
       static rpc_result cannounce_inner_node(const string& ip_list, rpc_context c) noexcept;
-
-      // execute on catalog only
-      static rpc_result outer_node_quit(rpc_context c) noexcept;
-
-      // execute on catalog only
-      static rpc_result inner_node_quit(rpc_context c) noexcept;
 
       static rpc_result udp_test_received(int round, rpc_context c) noexcept;
 
       static rpc_result cstart_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept;
 
       static rpc_result start_udp_test(int rounds, int test_count, int interval, int rest_time, rpc_context c) noexcept;
-
     };
 
-    REGISTER_REMOTE_FUNC(detect_catalog, 100);
-    REGISTER_REMOTE_FUNC(announce_catalog, 102);
-    REGISTER_REMOTE_FUNC(cannounce_catalog, 103);
-    REGISTER_REMOTE_FUNC(announce_inner_node, 104);
-    REGISTER_REMOTE_FUNC(cannounce_inner_node, 105);
-    REGISTER_REMOTE_FUNC(announce_outer_node, 106);
-    REGISTER_REMOTE_FUNC(cannounce_outer_node, 107);
-    REGISTER_REMOTE_FUNC(outer_node_quit, 108);
-    REGISTER_REMOTE_FUNC(inner_node_quit, 109);
+    ATLAS_REGISTER_REMOTE_FUNC(accumulate, 121);
 
-    REGISTER_REMOTE_FUNC(udp_test_received, 110);
-    REGISTER_REMOTE_FUNC(start_udp_test, 111);
-    REGISTER_REMOTE_FUNC(cstart_udp_test, 112);
-    REGISTER_REMOTE_FUNC(stop_udp_test, 113);
+    ATLAS_REGISTER_REMOTE_FUNC(announce_inner_node, 104);
+    ATLAS_REGISTER_REMOTE_FUNC(cannounce_inner_node, 105);
+
+    ATLAS_REGISTER_REMOTE_FUNC(udp_test_received, 110);
+    ATLAS_REGISTER_REMOTE_FUNC(start_udp_test, 111);
+    ATLAS_REGISTER_REMOTE_FUNC(cstart_udp_test, 112);
 
   } // rpc
 } // pioneer

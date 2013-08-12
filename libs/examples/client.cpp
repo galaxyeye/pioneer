@@ -20,6 +20,8 @@
  *    limitations under the License.
  */
 
+#include "config.h"
+
 #include <functional>
 
 #include <boost/bind.hpp>
@@ -79,12 +81,14 @@ private:
     buf->retrieve(sizeof(atlas::rpc::request_header));
     std::string rpc_str(buf->peek(), buf->readableBytes());
 
+    atlas::rpc::message message(buf->peek());
+
     if (!rpc_str.empty()) {
-      int method = static_cast<int>(header->fn_id);
-      atlas::rpc::dispatcher_manager::dispatch(method, rpc_str, nullptr);
+      // invoke built-in dispatchers
+      atlas::rpc::dispatcher_manager::ref().dispatch(header->fn_id, rpc_str, nullptr);
     }
     else {
-      LOG(ERROR) << "empty message!";
+      LOG(ERROR) << "bad rpc message!";
     }
 
     buf->retrieveAll();
@@ -99,8 +103,7 @@ private:
 int main(int argc, char* argv[]) {
   if (argc > 2) {
     EventLoopThread loopThread;
-    uint16_t port = static_cast<uint16_t>(atoi(argv[2]));
-    InetAddress server_addr(argv[1], port);
+    InetAddress server_addr(argv[1], static_cast<uint16_t>(atoi(argv[2])));
 
     pioneer_client client(loopThread.startLoop(), server_addr);
     client.connect();

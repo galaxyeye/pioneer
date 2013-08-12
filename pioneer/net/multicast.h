@@ -29,10 +29,12 @@
 #include <netdb.h>
 #include <netinet/in.h>
 
+#include <functional>
+#include <mutex>
 #include <array>
 
+#include <atlas/singleton.h>
 #include <glog/logging.h>
-
 #include <pioneer/net/ip.h>
 
 namespace pioneer {
@@ -44,7 +46,7 @@ namespace pioneer {
     // TODO : move to config file
     static const int MULTICAST_PORT = 1234;
     static const size_t RECV_BUFFER_SIZE = 220 * 1024;
-    static const int MESSAGE_BUFFER_SIZE = 3.5 * 1024;
+    static const int MESSAGE_BUFFER_SIZE = 3.5 * 1024; // TODO : check the buffer size
     static const int MAX_WAIT_TIME = 2;
 
     class mcast_server {
@@ -178,11 +180,15 @@ namespace pioneer {
 
       void init(const char* multi_group) {
         // std::call_once(_init_once, __init, multi_group);
+        if (_send_sockfd) return;
+
         __init(multi_group);
       }
 
       void stop() {
         // std::call_once(_stop_once, __stop);
+        if (!_send_sockfd) return;
+
         __stop();
       }
 
@@ -243,10 +249,8 @@ namespace pioneer {
       }
 
       void __stop() {
-        if (_send_sockfd) {
-          close(_send_sockfd);
-          _send_sockfd = 0;
-        }
+        close(_send_sockfd);
+        _send_sockfd = 0;
       }
 
     private:

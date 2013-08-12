@@ -67,7 +67,7 @@ namespace pioneer {
       }
     };
 
-    // TODO : there might bugs
+    // TODO : there might be bugs
     // 1. can we write a free function in a .h file?
     // 2. can we use static native variable to make the category is unique?
     //    seams have problems in multi-thread environment

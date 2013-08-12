@@ -43,16 +43,6 @@ namespace pioneer {
       return ip_port.substr(ip_port.find(":") + 1);
     }
 
-    static std::string get_host_name() {
-      char hostname[32];
-
-      if (gethostname(hostname, sizeof(hostname))) {
-        return "";
-      }
-
-      return hostname;
-    }
-
     static std::string get_ip_port(const sockaddr_in& addr) {
       char host[INET_ADDRSTRLEN] = "INVALID";
       ::inet_ntop(AF_INET, &addr.sin_addr, host, sizeof host);

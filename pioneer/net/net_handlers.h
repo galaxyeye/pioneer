@@ -166,7 +166,7 @@ namespace pioneer {
 
         system::context::outside_node_count = system::context::outside_ip_list.size();
 
-        LOG(INFO) << system::context::outside_ip_list;
+        LOG(INFO) << "outside ip list : " << system::context::outside_ip_list;
       }
 
       static void stat_inward_connection(const mn::TcpConnectionPtr& conn) {
@@ -185,7 +185,7 @@ namespace pioneer {
 
         system::context::inner_node_count = system::context::inside_ip_list.size();
 
-        LOG(INFO) << system::context::inside_ip_list;
+        LOG(INFO) << "inside ip list : " << system::context::inside_ip_list;
       }
 
       static void try_set_local_ip(const std::string& local_ip) {
@@ -216,6 +216,7 @@ namespace pioneer {
       }
 
       static void on_mcast_message(const std::string& source_ip_port, const char* message, size_t len) {
+        // for multicast, the source port must not be used to send back the respond
         run_task(ip::get_ip_part(source_ip_port), message, len);
       }
 
@@ -234,7 +235,7 @@ namespace pioneer {
 
         const atlas::rpc::request_header* header = reinterpret_cast<const atlas::rpc::request_header*>(buf->peek());
 
-        // TODO : TCP stick package problem
+        // TODO : handle TCP stick package problem
 
         if (len < sizeof(header->length) || (int32_t)len < header->length) {
           LOG(INFO) << "i will read more data. read " << len

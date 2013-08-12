@@ -19,3 +19,14 @@ exe server : server.cpp
   muduo_base/<link>static 
   muduo_net/<link>static 
   muduo_http/<link>static ;
+
+exe client : client.cpp 
+  pthread 
+  glog 
+  boost_program_options 
+  boost_serialization 
+  boost_filesystem 
+  boost_system 
+  muduo_base/<link>static 
+  muduo_net/<link>static  ;
+ 
