@@ -126,6 +126,7 @@ int main(int argc, char* argv[]) {
     }
   }
   else {
-    std::cerr << "Usage : client ip port";
+    std::cerr << "usage : client ip port";
+    std::cerr << "try : client 127.0.0.1 9100";
   }
 }
