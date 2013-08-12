@@ -31,7 +31,7 @@
 #include <muduo/net/http/HttpResponse.h>
 
 #include <pioneer/net/ip.h>
-// #include <pioneer/net/request.h>
+#include <pioneer/net/request.h>
 #include <pioneer/system/status.h>
 #include <pioneer/system/context.h>
 #include <pioneer/system/thread_pool.h>
@@ -309,15 +309,15 @@ namespace pioneer {
         }
       }
 
+      // build a executable task and put the task into the worker thread pool
       static void run_task(const std::string& source_ip_port, const char* message, size_t len) {
-//        auto request = session_manager::ref().build_request(source_ip_port, message, len);
-//        system::worker_pool::ref().schedule(std::bind(&request::execute, request));
+        auto request = session_manager::ref().build_request(source_ip_port, message, len);
+        system::worker_pool::ref().schedule(std::bind(&request::execute, request));
       }
 
     };
 
   } // net
 } // pioneer
-
 
 #endif /* NET_HANDLERS_H_ */

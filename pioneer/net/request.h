@@ -70,7 +70,7 @@ namespace pioneer {
       session_ptr session() const { return _session.lock(); }
 
       void execute() noexcept {
-        rpc::p2p_client response_client(_message.header()->client_id, _source_ip_port);
+        rpc::p2p_client response_client(static_cast<rpc::client_type>(_message.header()->client_id), _source_ip_port);
         atlas::rpc::dispatcher_manager::execute(response_client, _message, _source_ip_port);
       }
 
@@ -123,9 +123,13 @@ namespace pioneer {
     private:
 
       friend class atlas::singleton<session_manager>;
-      session_manager() = default;
       session_manager(session_manager&)= delete;
       session_manager& operator=(const session_manager&)= delete;
+
+    public:
+
+      // TODO : make it private, and allow singleton to access it only
+      session_manager() = default;
 
     public:
 

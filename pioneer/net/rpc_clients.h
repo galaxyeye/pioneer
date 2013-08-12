@@ -39,8 +39,8 @@ namespace pioneer {
     class bcast_client : public atlas::rpc::remote_caller {
     public:
 
-      bcast_client(int client_id = client_type::any_client) : atlas::rpc::remote_caller(client_id)
-      {}
+      bcast_client(client_type client = client_type::any_client, int response_expected = 1)
+        : atlas::rpc::remote_caller(client, response_expected) {}
 
       virtual ~bcast_client() {}
 
@@ -54,8 +54,8 @@ namespace pioneer {
     class mcast_client : public atlas::rpc::remote_caller {
     public:
 
-      mcast_client(int client = any_client, int resp_expect = 1)
-        : atlas::rpc::remote_caller(client, resp_expect) {}
+      mcast_client(client_type client = client_type::any_client, int response_expected = 1)
+        : atlas::rpc::remote_caller(client, response_expected) {}
 
       virtual ~mcast_client() {}
 
@@ -102,7 +102,7 @@ namespace pioneer {
 
     class random_client : public atlas::rpc::remote_caller {
 
-      random_client(int client_id) : atlas::rpc::remote_caller(client_id), _client_id(client_id) {}
+      random_client(client_type client) : atlas::rpc::remote_caller(client), _client_id(client) {}
 
       virtual ~random_client() {}
 
